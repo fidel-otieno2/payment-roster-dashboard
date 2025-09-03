@@ -4,10 +4,11 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const sgMail = require('@sendgrid/mail');
+const supabase = require('../supabaseClient');
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Setup PostgreSQL client
+// Setup PostgreSQL client as fallback
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -18,16 +19,6 @@ const pool = new Pool({
 
 // Setup SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-// Setup nodemailer transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-  port: process.env.SMTP_PORT || 587,
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-  },
-});
 
 // Test SendGrid connection route
 router.get('/test-smtp', async (req, res) => {
@@ -53,23 +44,51 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    const result = await pool.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+    let user;
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (supabase) {
+      // Use Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      user = data;
+    } else {
+      // Use PostgreSQL
+      const result = await pool.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      user = result.rows[0];
     }
 
-    const userId = result.rows[0].id;
+    const userId = user.id;
 
     // Generate reset token and expiry (1 hour)
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
-    // Store token and expiry in DB (add columns reset_token, reset_token_expiry to users table)
-    await pool.query(
-      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
-      [resetToken, resetTokenExpiry, userId]
-    );
+    // Store token and expiry in DB
+    if (supabase) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ reset_token: resetToken, reset_token_expiry: resetTokenExpiry })
+        .eq('id', userId);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } else {
+      await pool.query(
+        'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+        [resetToken, resetTokenExpiry, userId]
+      );
+    }
 
     // Send email with reset link
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
@@ -99,17 +118,33 @@ router.post('/reset-password', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
-      'SELECT id, reset_token, reset_token_expiry FROM users WHERE email = $1 LIMIT 1',
-      [email]
-    );
+    let user;
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (supabase) {
+      // Use Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, reset_token, reset_token_expiry')
+        .eq('email', email)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      user = data;
+    } else {
+      // Use PostgreSQL
+      const result = await pool.query(
+        'SELECT id, reset_token, reset_token_expiry FROM users WHERE email = $1 LIMIT 1',
+        [email]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      user = result.rows[0];
     }
 
-    const user = result.rows[0];
-
+    // Check if token matches and is not expired
     if (user.reset_token !== token || new Date() > new Date(user.reset_token_expiry)) {
       return res.status(400).json({ error: 'Invalid or expired token' });
     }
@@ -118,10 +153,21 @@ router.post('/reset-password', async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password and clear reset token fields
-    await pool.query(
-      'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
-      [hashedPassword, user.id]
-    );
+    if (supabase) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ password: hashedPassword, reset_token: null, reset_token_expiry: null })
+        .eq('id', user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } else {
+      await pool.query(
+        'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
+        [hashedPassword, user.id]
+      );
+    }
 
     res.json({ message: 'Password has been reset successfully' });
   } catch (error) {
@@ -131,5 +177,3 @@ router.post('/reset-password', async (req, res) => {
 });
 
 module.exports = router;
-
-

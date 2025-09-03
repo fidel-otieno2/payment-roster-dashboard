@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_ENDPOINTS } from "../config/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("http://localhost:4000/api/login", { email, password });
+      const response = await axios.post(API_ENDPOINTS.LOGIN, { email, password });
       localStorage.setItem("token", response.data.token);
       // Set user data in auth context if available
       if (response.data.user && typeof window !== "undefined") {

@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import AddPayment from "./pages/AddPayment";
 import Statistics from "./pages/Statistics";
 import UserRoleManagement from "./components/UserRoleManagement";
+import Services from "./pages/Services";
+import Contact from "./pages/Contact";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -23,6 +25,8 @@ function App() {
           <Route path="/add-payment" element={<AddPayment />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/user-management" element={<UserRoleManagement />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/contact" element={<Contact />} />
         </Routes>
       </ErrorBoundary>
     </Router>

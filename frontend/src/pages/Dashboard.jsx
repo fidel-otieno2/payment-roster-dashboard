@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import PaymentCard from "../components/PaymentCard";
 import PaymentFilters from "../components/PaymentFilters";
+import { API_ENDPOINTS } from "../config/api";
 import "../dashboard.css";
 
 export default function Dashboard() {
@@ -28,7 +29,7 @@ export default function Dashboard() {
   const fetchPayments = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:4000/api/payments", {
+      const response = await axios.get(API_ENDPOINTS.PAYMENTS, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPayments(response.data);
@@ -144,7 +145,7 @@ export default function Dashboard() {
                   try {
                     const token = localStorage.getItem("token");
                     await axios.patch(
-                      `http://localhost:4000/api/payments/${paymentId}`,
+                      `${API_ENDPOINTS.PAYMENTS}/${paymentId}`,
                       { status: newStatus },
                       { headers: { Authorization: `Bearer ${token}` } }
                     );
@@ -157,7 +158,7 @@ export default function Dashboard() {
                   if (window.confirm("Are you sure you want to delete this payment?")) {
                     try {
                       const token = localStorage.getItem("token");
-                      await axios.delete(`http://localhost:4000/api/payments/${paymentId}`, {
+                      await axios.delete(`${API_ENDPOINTS.PAYMENTS}/${paymentId}`, {
                         headers: { Authorization: `Bearer ${token}` },
                       });
                       fetchPayments();
