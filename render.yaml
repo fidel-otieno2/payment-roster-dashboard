@@ -1,0 +1,31 @@
+services:
+  # Backend API service
+  - type: web
+    name: payment-roster-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_PORT
+        value: 5432
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+
+  # PostgreSQL database
+  - type: pserv
+    name: payment-roster-db
+    env: postgres
+    plan: starter
+    # Database will be automatically created with connection details
