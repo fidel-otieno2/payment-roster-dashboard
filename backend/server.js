@@ -7,7 +7,29 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+
+// CORS configuration for production
+const allowedOrigins = [
+  "http://localhost:5173", // Local development
+  "http://localhost:4000", // Local backend
+  "https://payment-roster-dashboard-3.onrender.com", // Render backend (for internal calls)
+  // Add your Vercel frontend URL here when you have it
+  // "https://your-vercel-project.vercel.app"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Setup PostgreSQL client with error logging and SSL config
