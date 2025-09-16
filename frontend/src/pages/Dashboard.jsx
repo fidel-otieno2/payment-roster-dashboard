@@ -5,6 +5,7 @@ import axios from "axios";
 import PaymentCard from "../components/PaymentCard";
 import PaymentFilters from "../components/PaymentFilters";
 import { API_ENDPOINTS } from "../config/api";
+import BackendInfo from "../components/BackendInfo";
 import "../dashboard.css";
 
 export default function Dashboard() {
@@ -96,6 +97,9 @@ export default function Dashboard() {
         <button className="menu-toggle" onClick={toggleSidebar}>
           ☰
         </button>
+
+        {/* Backend Info Component */}
+        <BackendInfo />
 
         {/* Stats Cards */}
         <section className="stats-cards">
